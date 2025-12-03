@@ -2,25 +2,29 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>인증 완료</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      margin-top: 100px;
-    }
-    .box {
-      display: inline-block;
-      padding: 20px 30px;
-      border: 1px solid #ccc;
-      border-radius: 12px;
-    }
-  </style>
+  <title>Redirecting...</title>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const url = new URL(window.location.href);
+      const type = url.searchParams.get("type");
+
+      if (type === "signup") {
+        window.location.href = "/auth-complete-page/signup-complete.html";
+      } 
+      else if (type === "recovery") {
+        window.location.href = "/auth-complete-page/reset-password.html";
+      } 
+      else {
+        document.body.innerHTML = `
+          <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
+            <h2>유효하지 않은 요청입니다.</h2>
+            <p>링크가 잘못되었거나 만료되었습니다.</p>
+          </div>
+        `;
+      }
+    });
+  </script>
 </head>
 <body>
-  <div class="box">
-    <h2>이메일 인증이 완료되었습니다 🎉</h2>
-    <p>앱으로 돌아가 로그인해주세요.</p>
-  </div>
 </body>
 </html>
