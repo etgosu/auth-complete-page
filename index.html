@@ -43,29 +43,24 @@
     <p>잠시만 기다려 주세요.</p>
   </div>
 
-  <script type="module">
-    // 🔒 Supabase 설정
-    const SUPABASE_URL = 'https://agxskvjsoybgecjxzcyw.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFneHNrdmpzb3liZ2Vjanh6Y3l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwNjQ3OTksImV4cCI6MjA2MTY0MDc5OX0.c91rTzkL80pP5ehdLTnWdNAzSHkHtnDtTE-9wanbrAs';
-
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const messageEl = document.getElementById('message');
-
-    const showError = (title, desc) => {
-      messageEl.innerHTML = `
-        <h2 style="color:#ef4444;">${title}</h2>
-        <p>${desc}</p>
-      `;
-    };
-
-    const init = async () => {
+  <script>
+    // 단순 라우터: URL 파라미터에 따라 적절한 페이지로 리다이렉트
+    const init = () => {
       const url = new URL(window.location.href);
       const type = url.searchParams.get("type");
-      const code = url.searchParams.get("code");
+      const tokenHash = url.searchParams.get("token_hash");
 
-      // 1. 기존 type 파라미터 방식 (fallback)
+      // 1. token_hash + type 방식 (이메일 템플릿에서 직접 전달)
+      if (tokenHash && type === "recovery") {
+        window.location.href = `/auth-complete-page/reset-password.html?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
+        return;
+      }
+      if (tokenHash && type === "signup") {
+        window.location.href = `/auth-complete-page/signup-complete.html?token_hash=${encodeURIComponent(tokenHash)}&type=signup`;
+        return;
+      }
+
+      // 2. type만 있는 경우 (fallback)
       if (type === "signup") {
         window.location.href = "/auth-complete-page/signup-complete.html";
         return;
@@ -75,58 +70,27 @@
         return;
       }
 
-      // 2. PKCE 흐름: code 파라미터가 있는 경우
-      if (code) {
-        try {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-          if (error) {
-            console.error('세션 교환 실패:', error);
-            showError('유효하지 않은 요청입니다.', '링크가 만료되었거나 이미 사용된 링크입니다.');
-            return;
-          }
-
-          // 이메일 인증 완료인지 체크 (회원가입 이메일 인증)
-          if (data.user && data.user.email_confirmed_at != null) {
-            // 세션이 있고, recovery 타입이 아니면 → 회원가입 이메일 인증 완료
-            // recovery인 경우에도 email_confirmed_at이 있으므로, 
-            // session의 aal(authenticator assurance level)이나 다른 방법으로 구분
-            // 가장 간단한 방법: updateUser가 허용되는지 = recovery 세션
-            
-            // Supabase recovery 세션은 session이 있고 updateUser 호출이 가능
-            // signup 인증 완료는 email_confirmed_at이 방금 설정됨
-            // 구분 방법: recovery 링크는 session.user.recovery_sent_at이 설정됨
-            
-            // 실용적 구분: data.session이 있으면 비밀번호 재설정 가능
-            // 먼저 recovery인지 확인 (session이 있으면 비밀번호 변경 가능)
-            if (data.session) {
-              // 세션이 있으면 비밀번호 재설정 페이지로 (이미 세션 설정됨)
-              window.location.href = "/auth-complete-page/reset-password.html";
-              return;
-            }
-
-            // 세션 없이 email_confirmed_at만 있으면 회원가입 완료
-            window.location.href = "/auth-complete-page/signup-complete.html";
-            return;
-          }
-
-          // 세션이 있으면 비밀번호 재설정
-          if (data.session) {
-            window.location.href = "/auth-complete-page/reset-password.html";
-            return;
-          }
-
-          showError('유효하지 않은 요청입니다.', '링크가 잘못되었거나 만료되었습니다.');
-
-        } catch (err) {
-          console.error('처리 오류:', err);
-          showError('오류가 발생했습니다.', '네트워크 상태를 확인한 뒤 다시 시도해 주세요.');
+      // 3. 해시 프래그먼트 확인: #access_token=...&type=recovery
+      const hash = window.location.hash;
+      if (hash) {
+        const hashParams = new URLSearchParams(hash.replace('#', ''));
+        const hashType = hashParams.get('type');
+        
+        if (hashType === 'recovery') {
+          window.location.href = `/auth-complete-page/reset-password.html${hash}`;
+          return;
         }
-        return;
+        if (hashType === 'signup') {
+          window.location.href = `/auth-complete-page/signup-complete.html${hash}`;
+          return;
+        }
       }
 
-      // 3. code도 type도 없는 경우
-      showError('유효하지 않은 요청입니다.', '링크가 잘못되었거나 만료되었습니다.');
+      // 4. 유효하지 않은 요청
+      document.getElementById('message').innerHTML = `
+        <h2 style="color:#ef4444;">유효하지 않은 요청입니다.</h2>
+        <p>링크가 잘못되었거나 만료되었습니다.</p>
+      `;
     };
 
     init();
